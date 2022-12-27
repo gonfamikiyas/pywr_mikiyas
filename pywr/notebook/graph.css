@@ -1,0 +1,40 @@
+.node {
+    stroke-width: 1.5px;
+    stroke: #333;
+    fill: grey;
+}
+
+.node-text {
+    pointer-events: none;
+    font: 10px sans-serif;
+}
+
+.node:hover {
+    stroke-width: 2.5px;
+    stroke: #222;
+}
+.node-input {
+    fill: dodgerblue;
+}
+.node-link {
+    fill: grey;
+}
+.node-output {
+    fill: gold;
+}
+.node-storage {
+    fill: firebrick;
+}
+.node-reservoir {
+    fill: firebrick;
+}
+
+.table-tooltip{
+    position: relative;
+    border: solid 1px grey;
+    background-color: white;
+    pointer-events: none;
+    font: 10px sans-serif;
+    color: black;
+    z-index: 99999;
+}

@@ -1,0 +1,12 @@
+pandas
+networkx
+scipy
+tables
+xlrd
+packaging
+matplotlib
+jinja2
+ipython
+
+[test]
+pytest

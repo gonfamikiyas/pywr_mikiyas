@@ -1,0 +1,9 @@
+[run]
+plugins = Cython.Coverage
+omit =
+ *.pxd
+
+[paths]
+source =
+    .
+    /io
