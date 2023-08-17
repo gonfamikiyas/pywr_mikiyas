@@ -197,6 +197,7 @@ cdef class DataFrameParameter(Parameter):
             value = self._values[<int>(timestep.index), <int>(scenario_index._indices[self._scenario_index])]
         else:
             value = self._values[<int>(timestep.index), 0]
+
         return value
 
     @classmethod
@@ -471,6 +472,27 @@ cdef class ConstantScenarioParameter(Parameter):
         # correct number to use in this instance.
         return self._values[scenario_index._indices[self._scenario_index]]
 ConstantScenarioParameter.register()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 cdef class ArrayIndexedScenarioMonthlyFactorsParameter(Parameter):
@@ -1906,5 +1928,254 @@ def load_parameter_values(model, data, values_key='values', url_key='url',
                          "Please provide either a '{}', '{}' or '{}' entry.".format(values_key, url_key, table_key, name=name, ptype=ptype))
     return values
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+cdef class ConstantScenarioParameter_battry(Parameter):
+    """A Scenario varying Parameter
+
+    The values in this parameter are constant in time, but vary within a single Scenario.
+    """
+    def __init__(self, model, scenario, values, *args, **kwargs):
+        """
+        values should be an iterable that is the same length as scenario.size
+        """
+        super(ConstantScenarioParameter_battry, self).__init__(model, *args, **kwargs)
+      
+        if scenario.size != len(values):
+            raise ValueError("The number of values must equal the size of the scenario.")
+        self._values = np.empty(scenario.size)
+        for i in range(scenario.size):
+            self._values[i] = values[i]
+        self._scenario = scenario
+        
+
+
+    cpdef setup(self):
+        super(ConstantScenarioParameter_battry, self).setup()
+        
+        relate_db={
+                'TZ_Stieglers power pyene:max_flow': 'TZ_Stieglers power pyene',
+                'TZ_Ikondo power pyene:max_flow': 'TZ_Ikondo power pyene',
+                'TZ_Masigira power pyene:max_flow': 'TZ_Masigira power pyene',
+                'TZ_Songwe Sofre power pyene:max_flow': 'TZ_Songwe Sofre power pyene',
+                'TZ_Ruhudji power pyene:max_flow': 'TZ_Ruhudji power pyene',
+                'TZ_Rumakali power pyene:max_flow': 'TZ_Rumakali power pyene',
+                'TZ_Kidatu power pyene:max_flow': 'TZ_Kidatu power pyene',
+                'Upper Atbara and Setit Dam power pyene:max_flow': 'Upper Atbara and Setit Dam power pyene',
+                'Dal_low power pyene:max_flow': 'Dal_low power pyene',
+                'KY_Kiambere power pyene:max_flow': 'KY_Kiambere power pyene',
+                'KY_Ewaso Ngiro power pyene:max_flow': 'KY_Ewaso Ngiro power pyene',
+                'Tekeze_5 Dam power pyene:max_flow': 'Tekeze_5 Dam power pyene',
+                'ET_Halel_Wer Dam power pyene:max_flow': 'ET_Halel_Wer Dam power pyene',
+                'ET_Gilgel Gibe_IV power pyene:max_flow': 'ET_Gilgel Gibe_IV power pyene',
+                'Karadobi power pyene:max_flow': 'Karadobi power pyene',
+                'GERD power pyene:max_flow': 'GERD power pyene',
+                'Mendaya power pyene:max_flow': 'Mendaya power pyene',
+                'Koisha power pyene:max_flow': 'Koisha power pyene',
+                'ET_Gilgel Gibe_III power pyene:max_flow': 'ET_Gilgel Gibe_III power pyene',
+                'ET_Geba II power pyene:max_flow': 'ET_Geba II power pyene',
+                'Birbir Dam power pyene:max_flow': 'Birbir Dam power pyene',
+                'TZ_Songwe Manolo power pyene:max_flow':'TZ_Songwe Manolo power pyene',
+                'Baro1 power pyene:max_flow': 'Baro1 power pyene',
+                'Baro2 power pyene:max_flow': 'Baro2 power pyene',
+                'Genji power pyene:max_flow': 'Genji power pyene',
+                "Didessa power pyene:max_flow":"Didessa power pyene",
+                "Beko-Abo power pyene:max_flow":"Beko-Abo power pyene",
+                "TK6 power pyene:max_flow":"TK6 power pyene",
+                "TK7 power pyene:max_flow":"TK7 power pyene",
+                "Humera power pyene:max_flow":"Humera power pyene",
+                "Tams power pyene:max_flow":"Tams power pyene",
+                "ET_Genale 3D Dam power pyene:max_flow":"ET_Genale 3D Dam power pyene",
+                "ET_Genale 6D Dam power pyene:max_flow":"ET_Genale 6D Dam power pyene",
+                "ET_Gilgel Gibe_IV power pyene:max_flow":"ET_Gilgel Gibe_IV power pyene",
+                "ET_Geba I power pyene:max_flow":  "ET_Geba I power pyene"}
+      
+        HP_max ={
+            'TZ_Stieglers power pyene:max_flow': 1200,
+            'TZ_Ikondo power pyene:max_flow': 340,
+            'TZ_Masigira power pyene:max_flow': 118,
+            'TZ_Songwe Sofre power pyene:max_flow': 157,
+            'TZ_Songwe Manolo power pyene:max_flow':149,
+            'TZ_Kidatu power pyene:max_flow':208,
+            'TZ_Ruhudji power pyene:max_flow': 358,
+            'TZ_Rumakali power pyene:max_flow': 222,
+            'Upper Atbara and Setit Dam power pyene:max_flow': 320,
+            'KY_Kiambere power pyene:max_flow': 144,
+            'KY_Ewaso Ngiro power pyene:max_flow': 180,
+            'Tekeze_5 Dam power pyene:max_flow': 300,
+            'ET_Halel_Wer Dam power pyene:max_flow': 422,
+            'ET_Gilgel Gibe_IV power pyene:max_flow': 1468,
+            'Karadobi power pyene:max_flow': 1200,
+            'GERD power pyene:max_flow': 1600,
+            'Mendaya power pyene:max_flow': 2000,
+            'Koisha power pyene:max_flow': 1300,
+            'ET_Gilgel Gibe_III power pyene:max_flow': 1870,
+            'ET_Geba II power pyene:max_flow': 157,
+            'Birbir Dam power pyene:max_flow': 465,
+            'Dal_low power pyene:max_flow': 340,
+            'Baro1 power pyene:max_flow': 205,
+            'Baro2 power pyene:max_flow': 500,
+            'Genji power pyene:max_flow': 214,
+            "Didessa power pyene:max_flow":550,
+            "Beko-Abo power pyene:max_flow":1940,
+            "TK6 power pyene:max_flow":300,
+            "TK7 power pyene:max_flow":300,
+            "Humera power pyene:max_flow":300,
+            "Tams power pyene:max_flow":1700,
+            "ET_Genale 3D Dam power pyene:max_flow":254,
+            "ET_Genale 6D Dam power pyene:max_flow":246,
+            "ET_Gilgel Gibe_IV power pyene:max_flow":1468,
+            "ET_Geba I power pyene:max_flow": 215}
+        cdef int HP_max_value
+        cdef str relate_db_node
+        self.relate_db_node = relate_db[self.name]
+        self.HP_max_value = HP_max[self.name]
+
+    cpdef set_double_variables(self, double[:] values):
+        cdef double[:] _values
+        cdef int n
+        cdef int hour
+        self.hour=0
+        self.n = len(self._values)
+        self._values[...] = values[0:self.n]
+
+    cpdef double[:] get_double_variables(self):
+        return np.array(self._values, dtype=np.float64)
+
+    cpdef double value(self, Timestep ts, ScenarioIndex scenario_index) except? -1:        
+        if scenario_index.global_id == 0:
+            if self.hour==24:
+                self.hour=0
+            self.hour+=1
+
+        if self.hour == 1:
+            self._values[scenario_index.global_id] =  self._values[scenario_index.global_id]*24
+        else:
+            self._values[scenario_index.global_id] = self._values[scenario_index.global_id] - self.model.nodes[self.relate_db_node].prev_flow[scenario_index.global_id]
+
+        if self._values[scenario_index.global_id] <= 0:
+            self._values[scenario_index.global_id]=0
+
+        if self._values[scenario_index.global_id] >= self.HP_max_value and self.hour != 24:
+            return self.HP_max_value
+        return self._values[scenario_index.global_id]
+
+ConstantScenarioParameter_battry.register()
 
 

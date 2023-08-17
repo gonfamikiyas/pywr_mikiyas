@@ -4,7 +4,7 @@
 import numpy as np
 from scipy.interpolate import Rbf
 from .parameters import Parameter, load_parameter
-from ..nodes import Storage
+#from ..nodes import Storage
 
 
 class RbfData:
@@ -34,6 +34,8 @@ class RbfData:
         if self.lower_bounds is None:
             return None
         return [self.lower_bounds]*len(self.values)
+
+
 
 
 class RbfParameter(Parameter):

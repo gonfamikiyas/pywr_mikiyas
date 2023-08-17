@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: pywr
-Version: 1.5.1.dev36+ga1699bb.d20221227
+Version: 0.1.dev1+g4887ff0.d20230802
 Summary: Python Water Resource model
 Home-page: https://github.com/pywr/pywr
 Author: Joshua Arnott

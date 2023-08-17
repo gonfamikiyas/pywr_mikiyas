@@ -76,7 +76,6 @@ class AbstractInterpolatedParameter(Parameter):
         
         v = abs(self._value_to_interpolate(ts, scenario_index))
 
-        
         return self.interp(v)
 
 

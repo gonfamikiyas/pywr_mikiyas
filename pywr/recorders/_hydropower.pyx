@@ -129,8 +129,10 @@ cdef class HydropowerRecorder(NumpyArrayNodeRecorder):
             self.children.add(parameter)
             self._water_elevation_parameter = parameter        
 
+
+
     cpdef after(self):
-        cdef int i
+        cdef int i, ncomb
         cdef double q, head, power
         cdef Timestep ts = self.model.timestepper.current
         cdef ScenarioIndex scenario_index
@@ -156,6 +158,7 @@ cdef class HydropowerRecorder(NumpyArrayNodeRecorder):
                                              energy_unit_conversion=self.energy_unit_conversion)
 
             self._data[ts.index, scenario_index.global_id] = power
+            
            
 
     @classmethod
@@ -235,6 +238,8 @@ cdef class HydropowerRecorderWithVaribaleTailwater(NumpyArrayNodeRecorder):
         self.flow_unit_conversion = flow_unit_conversion
         self.energy_unit_conversion = energy_unit_conversion
 
+
+
     property water_elevation_parameter:
         def __get__(self):
             return self._water_elevation_parameter
@@ -254,7 +259,7 @@ cdef class HydropowerRecorderWithVaribaleTailwater(NumpyArrayNodeRecorder):
             self._turbine_elevation_parameter = parameter         
 
     cpdef after(self):
-        cdef int i
+        cdef int i, ncomb
         cdef double q, head, power
         cdef Timestep ts = self.model.timestepper.current
         cdef ScenarioIndex scenario_index

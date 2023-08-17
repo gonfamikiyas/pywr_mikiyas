@@ -26,9 +26,6 @@ cdef class AggregatedRecorder(Recorder):
     cdef public list recorders
 
 
-
-    
-
 cdef class NodeRecorder(Recorder):
     cdef AbstractNode _node
 
@@ -46,6 +43,20 @@ cdef class NumpyArrayNodeRecorder(NodeRecorder):
     cdef double[:, :] _data
     cdef public float factor
 
+
+cdef class NumpyArrayNodeRecorder_energy(NodeRecorder):
+    cdef Aggregator _temporal_aggregator
+    cdef double[:, :] _data
+    cdef public float factor
+    cdef int _count
+    
+cdef class NumpyArrayNodeRecorder_CAPEX(NodeRecorder):
+    cdef Aggregator _temporal_aggregator
+    cdef double[:, :] _data
+    cdef double[:] _values
+    cdef public float factor
+    cdef int _count
+    
 
 cdef class NumpyArrayNodeRecorder_transmission_line_test(NodeRecorder):
     cdef double[:, :] data
@@ -113,6 +124,8 @@ cdef class NumpyArrayAreaRecorder(NumpyArrayAbstractStorageRecorder):
 cdef class NumpyArrayParameterRecorder(ParameterRecorder):
     cdef public Aggregator _temporal_aggregator
     cdef double[:, :] _data
+    cdef double[:] current_value_integration
+
 
 cdef class NumpyArrayIndexParameterRecorder(IndexParameterRecorder):
     cdef public Aggregator _temporal_aggregator
@@ -216,4 +229,14 @@ cdef class TotalParameterRecorder(BaseConstantParameterRecorder):
 cdef class MeanParameterRecorder(BaseConstantParameterRecorder):
     cdef public double factor
 
+cdef class MaxParameterRecorder(ParameterRecorder):
+    cdef public double factor
+    cdef double[:, :] _data
+    cdef double[:] _values
+
+
+cdef class MaxParameterRecorder_Adaptive(ParameterRecorder):
+    cdef public double factor
+    cdef double[:, :] _data
+    cdef double[:] _values
 

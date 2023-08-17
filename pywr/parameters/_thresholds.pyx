@@ -140,262 +140,6 @@ cdef class AbstractThresholdParameter(IndexParameter):
 
 
 
-cdef class AgregatedCostThresholdRecorder_test2(IndexParameter):
-    """Returns one of two values depending on a Recorder value and a threshold
-
-    Parameters
-    ----------
-    recorder : `pywr.recorder.Recorder`
-
-    """
-
-    def __init__(self,  model,  Recorder recorder1, Recorder recorder2, Parameter threshold1, Parameter threshold2, *args, values=None, predicate=None, ratchet=False, initial_value=1, **kwargs):
-        super(AgregatedCostThresholdRecorder_test2, self).__init__(model, *args, **kwargs)
-
-        if values is None:
-            self.values = None
-        else:
-            self.values = np.array(values, np.float64)
-        self.recorder1 = recorder1
-        self.recorder2 = recorder2
-        self._count = 0
-
-        self.threshold1 = threshold1
-        self.threshold2 = threshold2
-
-        self.recorder1.parents.add(self)
-        self.recorder2.parents.add(self)
-        self.initial_value = initial_value
-
-
-    cpdef double value(self, Timestep timestep, ScenarioIndex scenario_index) except? -1:
-        """Returns a value from the values attribute, using the index"""
-        cdef int ind = self.get_index(scenario_index)
-        cdef double v
-        if self.values is not None:
-            v = self.values[ind]
-        else:
-            return np.nan
-        return v
-    cpdef setup(self):
-        super(AgregatedCostThresholdRecorder_test2, self).setup()
-        cdef int nts = len(self.model.timestepper)
-        cdef int ncomb = len(self.model.scenarios.combinations)
-        self.triggered = np.empty((ncomb), dtype=np.uint8)
-        year = 1+self.model.timestepper.end.year-self.model.timestepper.start.year
-        self.triggered_ = np.empty((ncomb,int(24*12*year)), dtype=np.uint8)
-        self.data = np.zeros((int(24*12*year), ncomb), dtype=np.uint8)
-        
-
-
-    cpdef reset(self):
-        super(AgregatedCostThresholdRecorder_test2, self).reset()
-        self.triggered_[...] = 0
-        self.triggered[...] = 0
-        self.data[...] = 0
-
-    cpdef double _value_to_compare_cost(self, Timestep timestep, ScenarioIndex scenario_index) except? -1:
-        # TODO Make this a more general API on Recorder
-        gen_cost_val = int(np.asarray(self.recorder1.diff)[scenario_index.global_id])
-        return gen_cost_val
-
-    cpdef double _value_to_compare_EDC(self, Timestep timestep, ScenarioIndex scenario_index) except? -1:
-        # TODO Make this a more general API on Recorder
-        EDC = int(np.asarray(self.recorder2.defc)[scenario_index.global_id])
-        return EDC
-
-
-    cpdef int index(self, Timestep timestep, ScenarioIndex scenario_index) except? -1:
-      
-        """Returns 1 if the predicate evalutes True, else 0"""
-        
-        cdef double gen_cost_rec_value, EDC_rec_value, gen_cost_threshold,EDC_threshold
-        cdef int index
-        
-        cdef bint ind, triggered
-        if self._count >= len(self.data):
-            self._count = 0
-        index=self._count
-
-
-        if index == 0:
-            ind = self.initial_value
-
-        trigger_years = [1977,1982,1987]
-
-        if timestep.year in trigger_years and timestep.month==12:
-            self.triggered[scenario_index.global_id]=(self.triggered_[scenario_index.global_id][index-1440:index]).max(axis=0)
-        elif timestep.year==1974 and timestep.month==12:
-            self.triggered[scenario_index.global_id]=(self.triggered_[scenario_index.global_id][index-864:index]).max(axis=0)
-
-        gen_cost_rec_value = self._value_to_compare_cost(timestep, scenario_index)
-        EDC_rec_value = self._value_to_compare_EDC(timestep, scenario_index)
-        
-        
-        if gen_cost_rec_value<=0:
-            gen_cost_rec_value=0
-
-
-        gen_cost_threshold = self.threshold1.value(timestep, scenario_index)
-        EDC_threshold = self.threshold2.value(timestep, scenario_index)
-
-        if gen_cost_rec_value >= gen_cost_threshold or EDC_rec_value >= EDC_threshold:
-            ind = 1
-        elif gen_cost_rec_value <= gen_cost_threshold and EDC_rec_value <= EDC_threshold:
-            ind = 0
-
-
-        self.triggered_[scenario_index.global_id,index] = ind
-        self.data[index,scenario_index.global_id] = ind
-
-        self._count+=1
-        
-        
-        return self.triggered[scenario_index.global_id]
-
-    @classmethod
-    def load(cls, model, data):
-        from pywr.recorders._recorders import load_recorder  # delayed to prevent circular reference
-        recorder1 = load_recorder(model, data["recorder"][0])
-        recorder2 = load_recorder(model, data.pop("recorder")[1])
-
-        
-        threshold1 = load_parameter(model, data["threshold"][0])
-        threshold2 = load_parameter(model, data.pop("threshold")[1])
-        values = data.pop("values", None)
-        predicate = data.pop("predicate", None)
-        ratchet = data.pop("ratchet", None)
-
-        return cls(model, recorder1,recorder2, threshold1, threshold2, predicate=predicate, **data)
-AgregatedCostThresholdRecorder_test2.register()
-
-
-
-cdef class AgregatedCostThresholdRecorder_test3(IndexParameter):
-    """Returns one of two values depending on a Recorder value and a threshold
-
-    Parameters
-    ----------
-    recorder : `pywr.recorder.Recorder`
-
-    """
-
-    def __init__(self,  model,  Recorder recorder1, Recorder recorder2, Parameter threshold1, Parameter threshold2, *args, values=None, predicate=None, ratchet=False, initial_value=1, **kwargs):
-        super(AgregatedCostThresholdRecorder_test3, self).__init__(model, *args, **kwargs)
-
-        if values is None:
-            self.values = None
-        else:
-            self.values = np.array(values, np.float64)
-        self.recorder1 = recorder1
-        self.recorder2 = recorder2
-        self._count = 0
-
-        self.threshold1 = threshold1
-        self.threshold2 = threshold2
-
-        self.recorder1.parents.add(self)
-        self.recorder2.parents.add(self)
-        self.initial_value = initial_value
-
-
-    cpdef double value(self, Timestep timestep, ScenarioIndex scenario_index) except? -1:
-        """Returns a value from the values attribute, using the index"""
-        cdef int ind = self.get_index(scenario_index)
-        cdef double v
-        if self.values is not None:
-            v = self.values[ind]
-        else:
-            return np.nan
-        return v
-    cpdef setup(self):
-        super(AgregatedCostThresholdRecorder_test3, self).setup()
-        cdef int nts = len(self.model.timestepper)
-        cdef int ncomb = len(self.model.scenarios.combinations)
-        self.triggered = np.empty((ncomb), dtype=np.uint8)
-        year = 1+self.model.timestepper.end.year-self.model.timestepper.start.year
-        self.triggered_ = np.empty((ncomb,int(24*12*year)), dtype=np.uint8)
-        self.data = np.zeros((int(24*12*year), ncomb), dtype=np.uint8)
-
-    cpdef reset(self):
-        super(AgregatedCostThresholdRecorder_test3, self).reset()
-        self.triggered_[...] = 0
-        self.triggered[...] = 0
-        self.data[...] = 0
-
-    cpdef double _value_to_compare_cost(self, Timestep timestep, ScenarioIndex scenario_index) except? -1:
-        # TODO Make this a more general API on Recorder
-        gen_cost_val = int(np.asarray(self.recorder1.diff)[scenario_index.global_id])
-        return gen_cost_val
-
-    cpdef double _value_to_compare_EDC(self, Timestep timestep, ScenarioIndex scenario_index) except? -1:
-        # TODO Make this a more general API on Recorder
-        EDC = int(np.asarray(self.recorder2.defc)[scenario_index.global_id])
-        return EDC
-
-
-    cpdef int index(self, Timestep timestep, ScenarioIndex scenario_index) except? -1:
-      
-        """Returns 1 if the predicate evalutes True, else 0"""
-        
-        cdef double gen_cost_rec_value, EDC_rec_value, gen_cost_threshold,EDC_threshold
-        cdef int index
-        
-        cdef bint ind, triggered
-        if self._count >= len(self.data):
-            self._count = 0
-        index=self._count
-
-        if index == 0:
-            ind = self.initial_value
-
-        trigger_years = [1977,1982,1987]
-
-        if timestep.year in trigger_years and timestep.month==12:
-            self.triggered[scenario_index.global_id]=(self.triggered_[scenario_index.global_id][index-1440:index]).max(axis=0)
-        elif timestep.year==1974 and timestep.month==12:
-            self.triggered[scenario_index.global_id]=(self.triggered_[scenario_index.global_id][index-864:index]).max(axis=0)
-
-        gen_cost_rec_value = self._value_to_compare_cost(timestep, scenario_index)*-1
-        EDC_rec_value = self._value_to_compare_EDC(timestep, scenario_index)
-        
-        if gen_cost_rec_value<=0:
-            gen_cost_rec_value=0
-        gen_cost_threshold = self.threshold1.value(timestep, scenario_index)
-        EDC_threshold = self.threshold2.value(timestep, scenario_index)
-
-        if gen_cost_rec_value >= gen_cost_threshold or EDC_rec_value >= EDC_threshold:
-            ind = 1
-        elif gen_cost_rec_value <= gen_cost_threshold and EDC_rec_value <= EDC_threshold:
-            ind = 0
-
-
-        self.triggered_[scenario_index.global_id,index] = ind
-        self.data[index,scenario_index.global_id] = ind
-        self._count+=1
-        
-        
-        return self.triggered[scenario_index.global_id]
-
-    @classmethod
-    def load(cls, model, data):
-        from pywr.recorders._recorders import load_recorder  # delayed to prevent circular reference
-        recorder1 = load_recorder(model, data["recorder"][0])
-        recorder2 = load_recorder(model, data.pop("recorder")[1])
-
-        
-        threshold1 = load_parameter(model, data["threshold"][0])
-        threshold2 = load_parameter(model, data.pop("threshold")[1])
-        values = data.pop("values", None)
-        predicate = data.pop("predicate", None)
-        ratchet = data.pop("ratchet", None)
-
-
-        return cls(model, recorder1,recorder2, threshold1, threshold2, predicate=predicate, **data)
-AgregatedCostThresholdRecorder_test3.register()
-
-
-
 cdef class StorageThresholdParameter(AbstractThresholdParameter):
     """ Returns one of two values depending on current volume in a Storage node
 
@@ -528,50 +272,6 @@ RecorderThresholdParameter.register()
 
 
 
-cdef class AgregatedCostThresholdRecorder_test(AbstractThresholdParameter):
-    """Returns one of two values depending on a Recorder value and a threshold
-
-    Parameters
-    ----------
-    recorder : `pywr.recorder.Recorder`
-
-    """
-
-    def __init__(self,  model, Recorder recorder, *args, initial_value=1, **kwargs):
-        super(AgregatedCostThresholdRecorder_test, self).__init__(model, *args, **kwargs)
-        self.recorder = recorder
-        self.recorder.parents.add(self)
-        self.initial_value = initial_value
-
-    cpdef double _value_to_compare(self, Timestep timestep, ScenarioIndex scenario_index) except? -1:
-        # TODO Make this a more general API on Recorder
-        return self.recorder.defc[scenario_index.global_id]
-
-    cpdef int index(self, Timestep timestep, ScenarioIndex scenario_index) except? -1:
-        """Returns 1 if the predicate evalutes True, else 0"""
-        cdef int index = timestep.index
-        cdef int ind
-        if index == 0:
-            # on the first day the recorder doesn't have a value so we have no
-            # threshold to compare to
-            ind = self.initial_value
-        else:
-            ind = super(AgregatedCostThresholdRecorder_test, self).index(timestep, scenario_index)
-        return ind
-
-    @classmethod
-    def load(cls, model, data):
-        from pywr.recorders._recorders import load_recorder  # delayed to prevent circular reference
-        recorder = load_recorder(model, data.pop("recorder"))
-        threshold = load_parameter(model, data.pop("threshold"))
-        values = data.pop("values", None)
-        predicate = data.pop("predicate", None)
-        return cls(model, recorder, threshold, values=values, predicate=predicate, **data)
-AgregatedCostThresholdRecorder_test.register()
-
-
-
-
 
 cdef class AgregatedThresholdRecorder(AbstractThresholdParameter):
     """Returns one of two values depending on a Recorder value and a threshold
@@ -616,6 +316,46 @@ AgregatedThresholdRecorder.register()
 
 
 
+cdef class AgregatedCostThresholdRecorder_test(AbstractThresholdParameter):
+    """Returns one of two values depending on a Recorder value and a threshold
+
+    Parameters
+    ----------
+    recorder : `pywr.recorder.Recorder`
+
+    """
+
+    def __init__(self,  model, Recorder recorder, *args, initial_value=1, **kwargs):
+        super(AgregatedCostThresholdRecorder_test, self).__init__(model, *args, **kwargs)
+        self.recorder = recorder
+        self.recorder.parents.add(self)
+        self.initial_value = initial_value
+
+    cpdef double _value_to_compare(self, Timestep timestep, ScenarioIndex scenario_index) except? -1:
+        # TODO Make this a more general API on Recorder
+        return self.recorder.defc[scenario_index.global_id]
+
+    cpdef int index(self, Timestep timestep, ScenarioIndex scenario_index) except? -1:
+        """Returns 1 if the predicate evalutes True, else 0"""
+        cdef int index = timestep.index
+        cdef int ind
+        if index == 0:
+            # on the first day the recorder doesn't have a value so we have no
+            # threshold to compare to
+            ind = self.initial_value
+        else:
+            ind = super(AgregatedCostThresholdRecorder_test, self).index(timestep, scenario_index)
+        return ind
+
+    @classmethod
+    def load(cls, model, data):
+        from pywr.recorders._recorders import load_recorder  # delayed to prevent circular reference
+        recorder = load_recorder(model, data.pop("recorder"))
+        threshold = load_parameter(model, data.pop("threshold"))
+        values = data.pop("values", None)
+        predicate = data.pop("predicate", None)
+        return cls(model, recorder, threshold, values=values, predicate=predicate, **data)
+AgregatedCostThresholdRecorder_test.register()
 
 
 

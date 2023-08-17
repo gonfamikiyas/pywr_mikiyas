@@ -43,6 +43,7 @@ def align_and_resample_dataframe(df, target_index, resample_func='mean'):
     end = target_index[-1]
 
     if not isinstance(df.index, pandas.PeriodIndex):
+        
         # Converting to period is sometimes unreliable. E.g. with freq='7D'
         # If the target frequency is passed explicitly this can help, but
         # not all Timestamp frequencies convert to Period frequencies. Therefore,

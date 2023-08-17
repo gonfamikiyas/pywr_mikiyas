@@ -282,6 +282,7 @@ cdef class AggregatedRecorder(Recorder):
         cdef int n = len(self.model.scenarios.combinations)
         cdef int i
 
+
         if self._recorder_agg_func == AggFuncs.PRODUCT:
             value = np.ones(n, np.float64)
             for recorder in self.recorders:
@@ -289,11 +290,13 @@ cdef class AggregatedRecorder(Recorder):
                 for i in range(n):
                     value[i] *= value2[i]
         elif self._recorder_agg_func == AggFuncs.SUM:
+            
             value = np.zeros(n, np.float64)
             for recorder in self.recorders:
                 value2 = recorder.values()
                 for i in range(n):
                     value[i] += value2[i]
+            
         elif self._recorder_agg_func == AggFuncs.MAX:
             value = np.empty(n)
             value[:] = np.NINF
@@ -320,6 +323,8 @@ cdef class AggregatedRecorder(Recorder):
                 value[i] /= len(self.recorders)
         else:
             value = self.recorder_agg_func([recorder.values() for recorder in self.recorders], axis=0)
+
+        
         return value
 
     @classmethod
@@ -518,12 +523,100 @@ cdef class NumpyArrayNodeRecorder(NodeRecorder):
         """
         index = self.model.timestepper.datetime_index
         sc_index = self.model.scenarios.multiindex
+        
 
         return pd.DataFrame(data=np.array(self._data), index=index, columns=sc_index)
 
 NumpyArrayNodeRecorder.register()
 
 
+
+
+
+
+
+
+
+
+cdef class NumpyArrayNodeRecorder_energy(NodeRecorder):
+    """Recorder for timeseries information from a `Node`.
+
+    This class stores flow from a specific node for each time-step of a simulation. The
+    data is saved internally using a memory view. The data can be accessed through the `data`
+    attribute or `to_dataframe()` method.
+
+    Parameters
+    ----------
+    model : `pywr.core.Model`
+    node : `pywr.core.Node`
+        Node instance to record.
+    temporal_agg_func : str or callable (default="sum")
+        Aggregation function used over time when computing a value per scenario. This can be used
+        to return, for example, the median flow over a simulation. For aggregation over scenarios
+        see the `agg_func` keyword argument.
+    factor: float (default=1.0)
+        A factor can be provided to scale the total flow (e.g. for calculating operational costs).
+
+    See also
+    --------
+    NumpyArrayNodeDeficitRecorder
+    NumpyArrayNodeSuppliedRatioRecorder
+    NumpyArrayNodeCurtailmentRatioRecorder
+    """
+    def __init__(self, model, AbstractNode node, **kwargs):
+        # Optional different method for aggregating across time.
+        temporal_agg_func = kwargs.pop('temporal_agg_func', 'sum')
+        factor = kwargs.pop('factor', 1.0)
+        super(NumpyArrayNodeRecorder_energy, self).__init__(model, node, **kwargs)
+        self._temporal_aggregator = Aggregator(temporal_agg_func)
+        self.factor = factor
+        self._count = 0
+        
+
+    property temporal_agg_func:
+        def __set__(self, agg_func):
+            self._temporal_aggregator.func = agg_func
+
+    cpdef setup(self):
+        
+        cdef int ncomb = len(self.model.scenarios.combinations)
+        self._count = 0
+        
+        self._data = np.zeros(((2+self.model.timestepper.end.year-self.model.timestepper.start.year)*12*24, ncomb))
+
+    cpdef reset(self):
+        self._data[:, :] = 0.0
+        self._count = 0
+
+    cpdef after(self):
+        cdef int i 
+        cdef Timestep ts = self.model.timestepper.current
+        self._count+=1
+        for i in range(self._data.shape[1]):
+            self._data[self._count, i] = self.node.flow[i]*self.factor
+        return 0
+
+    property data:
+        def __get__(self, ):
+            return self._data
+
+    cpdef double[:] values(self):
+        """Compute a value for each scenario using `temporal_agg_func`.
+        """
+        return self._temporal_aggregator.aggregate_2d(self._data, axis=0, ignore_nan=self.ignore_nan)
+
+    def to_dataframe(self):
+        """ Return a `pandas.DataFrame` of the recorder data
+
+        This DataFrame contains a MultiIndex for the columns with the recorder name
+        as the first level and scenario combination names as the second level. This
+        allows for easy combination with multiple recorder's DataFrames
+        """
+        index = range(len(self._data))
+        sc_index = self.model.scenarios.multiindex
+        return pd.DataFrame(data=np.array(self._data), index=index, columns=sc_index)
+
+NumpyArrayNodeRecorder_energy.register()
 
 
 cdef class NumpyArrayNodeRecorder_transmission_line_test(NodeRecorder):
@@ -776,6 +869,8 @@ cdef class NumpyArrayNodeDeficitRecorder(NumpyArrayNodeRecorder):
             max_flow = node.get_max_flow(scenario_index)
             self._data[ts.index,scenario_index.global_id] = max_flow - node._flow[scenario_index.global_id]
         return 0
+
+
 NumpyArrayNodeDeficitRecorder.register()
 
 
@@ -1578,6 +1673,8 @@ cdef class NumpyArrayAreaRecorder(NumpyArrayAbstractStorageRecorder):
 NumpyArrayAreaRecorder.register()
 
 
+
+
 cdef class NumpyArrayParameterRecorder(ParameterRecorder):
     """Recorder for timeseries information from a `Parameter`.
 
@@ -1610,6 +1707,7 @@ cdef class NumpyArrayParameterRecorder(ParameterRecorder):
         cdef int ncomb = len(self.model.scenarios.combinations)
         cdef int nts = len(self.model.timestepper)
         self._data = np.zeros((nts, ncomb))
+        self.current_value_integration = np.zeros((ncomb))
 
     cpdef reset(self):
         self._data[:, :] = 0.0
@@ -1618,8 +1716,14 @@ cdef class NumpyArrayParameterRecorder(ParameterRecorder):
         cdef int i
         cdef ScenarioIndex scenario_index
         cdef Timestep ts = self.model.timestepper.current
-        self._data[ts.index, :] = self._param.get_all_values()
+        self.current_value_integration = self._param.get_all_values()
+        self._data[ts.index, :] = self.current_value_integration
         return 0
+
+
+    property current_value_integration:
+        def __get__(self, ):
+            return np.array(self.current_value_integration)
 
     property data:
         def __get__(self, ):
@@ -1636,7 +1740,7 @@ cdef class NumpyArrayParameterRecorder(ParameterRecorder):
         as the first level and scenario combination names as the second level. This
         allows for easy combination with multiple recorder's DataFrames
         """
-        index = self.model.timestepper.datetime_index
+        index = range(len(self._data))
         sc_index = self.model.scenarios.multiindex
 
         return pd.DataFrame(data=np.array(self._data), index=index, columns=sc_index)
@@ -2429,3 +2533,210 @@ cdef class MeanParameterRecorder(BaseConstantParameterRecorder):
         for i in range(self._values.shape[0]):
             self._values[i] /= nt
 MeanParameterRecorder.register()
+
+
+
+
+
+cdef class MaxParameterRecorder(ParameterRecorder):
+    """Record the mean value of a `Parameter` during a simulation.
+
+    This recorder can be used to track the sum total of the values returned by a
+    `Parameter` during a models simulation. An optional factor can be provided to
+    apply a linear scaling of the values. If the parameter represents a flux
+    the `integrate` keyword argument can be used to multiply the values by the time-step
+    length in days.
+
+    Parameters
+    ----------
+    model : `pywr.core.Model`
+    param : `pywr.parameters.Parameter`
+        The parameter to record.
+    name : str (optional)
+        The name of the recorder
+    factor : float (default=1.0)
+        Scaling factor for the values of `param`.
+    """
+    def __init__(self, *args, **kwargs):
+        self.factor = kwargs.pop('factor', 1.0)
+        super(MaxParameterRecorder, self).__init__(*args, **kwargs)
+
+
+    cpdef setup(self):
+        cdef int ncomb = len(self.model.scenarios.combinations)
+        cdef int nts = len(self.model.timestepper)
+        self._data = np.zeros((nts, ncomb))
+        self._values = np.zeros(len(self.model.scenarios.combinations))
+
+    cpdef double[:] values(self):
+        return self._values
+        
+    cpdef after(self):
+        cdef ScenarioIndex scenario_index
+        cdef int i
+        cdef double[:] values
+        cdef factor = self.factor
+
+        values = self._param.get_all_values()
+        for scenario_index in self.model.scenarios.combinations:
+            i = scenario_index.global_id
+            self._data[i] = values[i]*factor
+        return 0
+
+    cpdef finish(self):
+        cdef int i
+        for i in range(self._values.shape[0]):
+            self._values[i] = np.max(self._data[i])
+MaxParameterRecorder.register()
+
+
+
+
+
+
+
+
+
+
+
+cdef class NumpyArrayNodeRecorder_CAPEX(NodeRecorder):
+    """Recorder for timeseries information from a `Node`.
+
+    This class stores flow from a specific node for each time-step of a simulation. The
+    data is saved internally using a memory view. The data can be accessed through the `data`
+    attribute or `to_dataframe()` method.
+
+    Parameters
+    ----------
+    model : `pywr.core.Model`
+    node : `pywr.core.Node`
+        Node instance to record.
+    temporal_agg_func : str or callable (default="sum")
+        Aggregation function used over time when computing a value per scenario. This can be used
+        to return, for example, the median flow over a simulation. For aggregation over scenarios
+        see the `agg_func` keyword argument.
+    factor: float (default=1.0)
+        A factor can be provided to scale the total flow (e.g. for calculating operational costs).
+
+    See also
+    --------
+    NumpyArrayNodeDeficitRecorder
+    NumpyArrayNodeSuppliedRatioRecorder
+    NumpyArrayNodeCurtailmentRatioRecorder
+    """
+    def __init__(self, model, AbstractNode node, **kwargs):
+        # Optional different method for aggregating across time.
+        temporal_agg_func = kwargs.pop('temporal_agg_func', 'sum')
+        factor = kwargs.pop('factor', 1.0)
+        super(NumpyArrayNodeRecorder_CAPEX, self).__init__(model, node, **kwargs)
+        self._temporal_aggregator = Aggregator(temporal_agg_func)
+        self.factor = factor
+        self._count = 0
+        
+
+    property temporal_agg_func:
+        def __set__(self, agg_func):
+            self._temporal_aggregator.func = agg_func
+
+    cpdef setup(self):
+        
+        cdef int ncomb = len(self.model.scenarios.combinations)
+        self._count = 0
+        cdef double[:] _values
+        self._values = np.zeros(len(self.model.scenarios.combinations))
+        self._data = np.zeros(((2+self.model.timestepper.end.year-self.model.timestepper.start.year)*12*24, ncomb))
+
+    cpdef reset(self):
+        self._data[:, :] = 0.0
+        self._count = 0
+
+    cpdef after(self):
+        cdef int i 
+        cdef Timestep ts = self.model.timestepper.current
+        self._count+=1
+        for i in range(self._data.shape[1]):
+            self._data[self._count, i] = self.node.flow[i]
+        return 0
+
+    property data:
+        def __get__(self, ):
+            return self._data
+
+    cpdef double[:] values(self):
+        """Compute a value for each scenario using `temporal_agg_func`.
+        """
+        for i in range(self._values.shape[0]):
+            if np.max(self._data[i])>1:
+                self._values[i] = self.factor
+            else:
+                self._values[i] = 0
+        return self._values
+
+    def to_dataframe(self):
+        """ Return a `pandas.DataFrame` of the recorder data
+
+        This DataFrame contains a MultiIndex for the columns with the recorder name
+        as the first level and scenario combination names as the second level. This
+        allows for easy combination with multiple recorder's DataFrames
+        """
+        index = range(len(self._data))
+        sc_index = self.model.scenarios.multiindex
+        return pd.DataFrame(data=np.array(self._data), index=index, columns=sc_index)
+NumpyArrayNodeRecorder_CAPEX.register()
+
+
+
+
+
+
+
+cdef class MaxParameterRecorder_Adaptive(ParameterRecorder):
+    """Record the mean value of a `Parameter` during a simulation.
+
+    This recorder can be used to track the sum total of the values returned by a
+    `Parameter` during a models simulation. An optional factor can be provided to
+    apply a linear scaling of the values. If the parameter represents a flux
+    the `integrate` keyword argument can be used to multiply the values by the time-step
+    length in days.
+
+    Parameters
+    ----------
+    model : `pywr.core.Model`
+    param : `pywr.parameters.Parameter`
+        The parameter to record.
+    name : str (optional)
+        The name of the recorder
+    factor : float (default=1.0)
+        Scaling factor for the values of `param`.
+    """
+    def __init__(self, *args, **kwargs):
+        self.factor = kwargs.pop('factor', 1.0)
+        super(MaxParameterRecorder_Adaptive, self).__init__(*args, **kwargs)
+
+
+    cpdef setup(self):
+        cdef int ncomb = len(self.model.scenarios.combinations)
+        cdef int nts = len(self.model.timestepper)
+        self._data = np.zeros((nts, ncomb))
+        self._values = np.zeros(len(self.model.scenarios.combinations))
+
+    cpdef double[:] values(self):
+        return self._values
+        
+    cpdef after(self):
+        cdef ScenarioIndex scenario_index
+        cdef int i
+        cdef double[:] values
+        cdef factor = self.factor
+        
+        values = self._param.get_all_values()
+        for scenario_index in self.model.scenarios.combinations:
+            i = scenario_index.global_id
+            self._data[i] = values[i]*factor
+        return 0
+
+    cpdef finish(self):
+        cdef int i
+        for i in range(self._values.shape[0]):
+            self._values[i] = np.sum(self._data[i])/(len(self._data[i]))
+MaxParameterRecorder_Adaptive.register()

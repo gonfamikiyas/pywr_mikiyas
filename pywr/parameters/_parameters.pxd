@@ -51,6 +51,14 @@ cdef class ConstantScenarioParameter(Parameter):
     cdef double[:] _values
     cdef int _scenario_index
 
+cdef class ConstantScenarioParameter_battry(Parameter):
+    cdef Scenario _scenario
+    cdef double[:] _values
+    cdef int _scenario_index
+    cdef int n, hour, HP_max_value
+    cdef str relate_db_node
+
+
 cdef class ArrayIndexedScenarioMonthlyFactorsParameter(Parameter):
     cdef double[:] _values
     cdef double[:, :] _factors

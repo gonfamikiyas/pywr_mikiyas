@@ -215,7 +215,10 @@ cdef set_obj_coef(glp_prob *P, int j, double coef):
 cdef set_row_bnds(glp_prob *P, int i, int type, double lb, double ub):
     IF SOLVER_DEBUG:
         assert np.isfinite(lb)
+        if np.isfinite(ub) == False:
+            ub = 0.1
         assert np.isfinite(ub)
+        
         assert lb <= ub
         if abs(lb) < 1e-9:
             if abs(lb) != 0.0:
